@@ -304,19 +304,28 @@ This prevents expensive full repository re-indexing.
 # Current Prototype Stack
 
 ## Runtime
-
-* Ollama
+- Ollama 0.24.0
 
 ## Models
+| Model | Role |
+|-------|------|
+| Qwen3:8b (Q4_K_M) | Primary semantic reasoning and indexing |
+| Gemma4:4b | Lightweight helper — fast routing and retrieval decisions |
+| Qwen2.5-Coder:1.5b | Autocomplete only |
+| nomic-embed-text | Semantic embeddings (future retrieval layer) |
 
-* Qwen2.5-Coder 7B
-* Qwen2.5-Coder 1.5B
-* Nomic Embed Text
+## Orchestration
+- Langroid (Python) — multi-agent hub-and-spoke task management
 
 ## IDE Layer
+- Roo Code (VS Code extension)
+  - Ask Mode — read-only, for explain and understand tasks
+  - Architect Mode — planning only, no file writes
+  - Code Mode — implementation with approval on every file write
 
-* Continue.dev
-* VS Code
+## Index Storage
+- Local filesystem (JSON) — structured context files in `.ai-memory/`
+- Qdrant (planned) — vector search on top of context files
 
 ---
 
@@ -424,6 +433,64 @@ The goal is to document not only successful ideas, but also:
 * indexing challenges
 * scaling limitations
 * enterprise AI constraints
+
+---
+
+---
+
+# Architecture Evolution Log
+
+This section documents real decisions, pivots, and lessons learned
+during active development. A research project that only shows
+successes is not honest research.
+
+---
+
+## May 2026 — Orchestration Stack Pivot
+
+**What was tried:**
+Initial stack used Continue.dev as the IDE layer with
+qwen2.5-coder:7b as the primary model.
+
+**What failed:**
+Continue.dev cannot support multi-step autonomous agent workflows.
+It is a chat interface, not an orchestration engine.
+qwen2.5-coder:7b repeatedly output fake JSON tool calls as plain
+text instead of executing tools correctly — causing failures:
+`"The model provided reasoning but did not call required tools."`
+
+**Root cause identified:**
+The project is not building a normal coding assistant.
+It is building a semantic intelligence platform requiring:
+- reliable tool calling
+- long autonomous workflows
+- structured multi-step execution
+- deterministic orchestration behavior
+
+These requirements exceed what IDE-centric tools like Continue.dev
+can provide.
+
+**Decisions made:**
+- Replaced Continue.dev with **Roo Code** for IDE layer
+  (mode separation — Ask / Architect / Code — enforces correct
+  agent behavior per task type)
+- Replaced qwen2.5-coder:7b with **Qwen3:8b** for primary model
+  (significantly better tool calling, semantic reasoning, and
+  structured output reliability)
+- Added **Gemma4:4b** as lightweight helper model for fast routing
+  and low-cost retrieval decisions
+- Added **Langroid** as the orchestration layer
+  (hub-and-spoke multi-agent architecture, native Ollama support,
+  no need to build orchestration from scratch)
+
+**Key architectural realization:**
+> The most valuable asset in this system is NOT the model.
+> It is the hierarchical semantic indexing architecture.
+> Models are replaceable. The index structure is the moat.
+
+**Ollama version note:**
+Qwen3 tool calling had a known parsing bug fixed in Ollama v0.17.6.
+Current version is 0.24.0 — bug is resolved. No workarounds needed.
 
 ---
 
