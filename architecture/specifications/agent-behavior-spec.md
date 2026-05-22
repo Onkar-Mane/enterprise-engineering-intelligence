@@ -149,3 +149,129 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
   - Return context and retrieved information to the user with an explanation of why code generation failed.
   - Suggest alternative workflows or actions for the user to take.
 
+
+## 6. Agent Decision Pseudocode
+
+### 6.1 WorkflowDetectionAgent
+
+#### Inputs:
+- `developer_query: string`
+
+#### Logic:
+1. `keywords = extract_keywords(developer_query)`
+2. `matched_workflows = match_keywords_in_registry(keywords)`
+    - Match keywords against workflow name registry (JSON lookup).
+3. Evaluate match confidence:
+    - If `confidence(matched_workflows) >= CONFIDENCE_THRESHOLD`
+        - `return WORKFLOW_FOUND_SIGNAL(workflow_id, matched_files[])`
+    - Else if `partial_match_detected(matched_workflows)`
+        - `return PARTIAL_MATCH_SIGNAL(top_candidates[])`
+    - Else
+        - `return DEFAULT_WORKFLOW_SIGNAL()`
+
+---
+
+### 6.2 ContextRetrievalAgent
+
+#### Inputs:
+- `workflow_id`
+- `developer_query`
+
+#### Logic:
+1. Load `workflow_context = load_workflow_context(workflow_id)`
+2. Begin hierarchical search:
+    - Level 1 (`retrieval_hints`):
+        - If `match_query(workflow_context.level1_hints, developer_query)`
+            - Proceed to Level 2.
+        - Else
+            - `return CONTEXT_NOT_FOUND_SIGNAL()`
+    - Level 2 (`contents_index`):
+        - Locate `region = find_matching_region(workflow_context.level2_contents_index, developer_query)`
+        - If `region != NULL`
+            - Proceed to Level 3.
+        - Else
+            - `return CONTEXT_NOT_FOUND_SIGNAL()`
+    - Level 3 (`brief_context`):
+        - Load `brief_context = load_context(region, level=3)`
+        - Evaluate query relevance:
+            - If `query_resolved_by(brief_context, developer_query)`
+                - `return BRIEF_CONTEXT_RESULT(signal=OK, data=brief_context)`
+            - Else
+                - Proceed to Level 4.
+    - Level 4 (`detailed_context`):
+        - Load `detailed_context = load_context(region, level=4)`
+        - Evaluate:
+            - If `query_resolved_by(detailed_context, developer_query)`
+                - `return DETAILED_CONTEXT_RESULT(signal=OK, data=detailed_context)`
+            - Else
+                - Proceed to Level 5.
+    - Level 5 (`raw_code_expansion`):
+        - `return CODE_EXPANSION_REQUEST(region_method, workflow_id)`
+3. Track token usage at each level:
+    - `tokens_used = count_tokens(workflow_context_per_level)`
+
+---
+
+### 6.3 ConfidenceEvaluationAgent
+
+#### Inputs:
+- `retrieved_context`
+- `developer_query`
+- `tokens_used`
+
+#### Logic:
+1. Score matching attributes:
+    - `relevance = calculate_relevance(retrieved_context, developer_query)`
+    - `completeness = evaluate_completeness(retrieved_context, developer_query)`
+    - `source_quality = evaluate_source_quality(retrieved_context)`
+2. Calculate weighted confidence:
+    - `confidence_score = (relevance * 0.5) + (completeness * 0.3) + (source_quality * 0.2)`
+3. Return decision signal:
+    - If `confidence_score >= 0.85`
+        - `return PASS_TO_LLM_SIGNAL(retrieved_context)`
+    - Else if `0.6 <= confidence_score < 0.85`
+        - `return TRIGGER_CODE_EXPANSION_SIGNAL(retrieved_context.metadata)`
+    - Else
+        - `return RETRIEVAL_FAILED_SIGNAL(reason='Low confidence')`
+
+---
+
+### 6.4 CodeExpansionAgent
+
+#### Inputs:
+- `workflow_id`
+- `method_name`
+- `line_start`
+- `line_end`
+
+#### Logic:
+1. Locate source file path:
+    - `file_path = find_source_file_path(workflow_id, method_name)`
+2. Evaluate file existence:
+    - If `file_path == NULL`
+        - `return FILE_NOT_FOUND_SIGNAL(workflow_id, method_name)`
+3. Validate line range:
+    - If `line_start > line_end OR line_start < 1`
+        - `return RANGE_ERROR_SIGNAL(line_start, line_end)`
+4. Extract code lines:
+    - `raw_code_block = extract_lines(file_path, line_start, line_end)`
+5. Return raw code metadata:
+    - `return RAW_CODE_BLOCK_SIGNAL(file_path, line_start, line_end, raw_code_block)`
+
+---
+
+### 6.5 Orchestration Flow
+
+1. `WorkflowDetectionAgent`: 
+    - Maps a developer’s query to a `workflow_id` or triggers a default workflow signal.
+2. `ContextRetrievalAgent`: 
+    - Retrieves hierarchical context data based on `workflow_id` and query specificity, progressing through levels as needed.
+    - Signals: `CONTEXT_NOT_FOUND`, `BRIEF_CONTEXT_RESULT`, `DETAILED_CONTEXT_RESULT`, `CODE_EXPANSION_REQUEST`.
+3. `ConfidenceEvaluationAgent`:
+    - Scores retrieved context against query attributes and token usage.
+    - Signals: `PASS_TO_LLM`, `TRIGGER_CODE_EXPANSION`, `RETRIEVAL_FAILED`.
+4. `CodeExpansionAgent`:
+    - Handles last-resort requests for raw code extraction based on metadata from earlier agents.
+    - Signals: `RAW_CODE_BLOCK`, `FILE_NOT_FOUND`, `RANGE_ERROR`.
+
+The flow ensures seamless delegation between agents and effectively handles complex queries while accounting for failures and fallback mechanisms.
