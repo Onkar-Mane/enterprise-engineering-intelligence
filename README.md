@@ -380,6 +380,12 @@ assets/
 * Context layering strategy
 * Incremental indexing direction
 * Enterprise proposal architecture
+* Architecture diagrams (Mermaid) — system architecture, hybrid retrieval, incremental indexing
+* Agent behavior specification (RFC format)
+* Context file examples — workflow, service, DAL layers
+* Context file generator specification
+* Whitepaper extracted to Markdown
+* Competitive landscape analysis against GraphRAG, Cursor, CodeGraph
 
 ---
 
@@ -517,3 +523,4 @@ rather than relying solely on:
 * raw code chunking
 * naive vector search
 * brute-force context loading
+
