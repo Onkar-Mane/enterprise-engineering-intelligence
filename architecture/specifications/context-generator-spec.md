@@ -379,32 +379,3 @@ To support flexible integrations across enterprise environments, the generator p
 ```
 
 These configurations allow developers to avoid indexing unnecessary or legacy solutions and ensure the generator prioritizes critical workflows correctly.
-
-To support flexible integrations across enterprise environments, the generator provides configuration options for selecting and prioritizing `.sln` files.
-
-- **Solution Inclusion/Exclusion**:
-  - Define specific `.sln` files to include or exclude during the scanning phase.
-  - Example:
-
-```yaml
-    solution_inclusion:
-      - "MainSolution.sln"
-      - "SupportSolution.sln"
-
-    solution_exclusion:
-      - "LegacySolution.sln"
-```
-
-- **Solution Priority**:
-  - When conflicts exist (e.g., shared project ambiguity), solutions can be prioritized using a ranking system.
-  - Example:
-
-```yaml
-    priority_order:
-      - solution: "MainSolution.sln"
-        rank: 1
-      - solution: "SupportSolution.sln"
-        rank: 2
-```
-
-These configurations allow developers to avoid indexing unnecessary or legacy solutions and ensure the generator prioritizes critical workflows correctly.

@@ -394,7 +394,7 @@ The flow ensures seamless delegation between agents and effectively handles comp
 ## Signals Reference for Error Scenarios
 
 | **Scenario**                        | **Signal Name**                      | **Details**                                   |
-|-|--|-|
+|---|---|---|
 | Context generation fails mid-workflow | `CONTEXT_GENERATION_FAILED_SIGNAL`   | Failure in generating context during workflow. |
 | Corrupt/malformed context file       | `CONTEXT_FILE_SKIPPED_SIGNAL`        | File skipped due to corruption or error.     |
 | Stale context detected               | `STALE_CONTEXT_WARNING_SIGNAL`       | Warning issued for minor staleness.          |
