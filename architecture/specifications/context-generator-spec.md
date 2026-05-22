@@ -1,10 +1,4 @@
-```markdown
 # Context File Generator Specification
-
-**Filename**: `context-generator-spec.md`  
-**Author**: Engineering Intelligence Team  
-**Version**: 1.0  
-**Target Stack**: Python 3.9+
 
 ---
 
@@ -274,6 +268,143 @@ contextgen --version
 ```
 
 ---
+## 8. Multi-Project Solution Handling
 
-**End of Document**
+### 8.1 Problem Statement
+
+Enterprise ASP.NET solutions present unique challenges for context generation due to their complex structure and interconnected nature. Common issues include:
+
+- **Large Solutions**: Enterprise `.sln` files often contain 10–50 or more projects, requiring deep parsing across diverse locations.
+- **Shared Projects**: Projects such as shared libraries or framework layers (e.g., BLL or DAL) are frequently referenced across multiple solutions, introducing redundancy if not carefully managed.
+- **Namespace Overlap**: Projects in different solutions can have overlapping namespaces, potentially leading to ambiguous references or inaccurate indexing.
+- **Single-Project Assumptions**: Traditional context generators designed for smaller or single-project solutions break when required to support enterprise-scale `.sln` files with cross-project and shared dependencies.
+
+These challenges necessitate enhancements to the generator's ability to support multi-project workflows and accurately maintain context fidelity across interconnected solutions.
+
+---
+
+### 8.2 Solution Discovery
+
+The generator implements an enhanced `.sln` scanning and parsing mechanism to address multi-project solution complexity:
+
+- **Solution Scanning**:
+  - The generator recursively scans the target directory for `.sln` files. It filters and prioritizes these based on predefined inclusion/exclusion rules.
+- **Project Reference Extraction**:
+  - The `.sln` parser extracts all project references, including interdependencies defined within solution files.
+  - References to `.csproj`, `.vbproj`, and project-specific metadata such as target frameworks or output paths are cataloged.
+- **Nested Solutions**:
+  - If solution folders or nested solutions exist, the generator iterates through their hierarchy and includes these in the reference map.
+  - Flexible configuration options allow users to either expand nested solutions or treat them independently.
+
+---
+
+### 8.3 Shared Project Detection
+
+To mitigate duplication and redundancy, the generator applies logic to detect shared projects and manage them appropriately:
+
+- **Shared Project Identification**:
+  - Projects referenced by multiple `.sln` files are flagged as shared. The generator does this by comparing project GUIDs, paths, and names across the scanned `.sln` files.
+- **Avoiding Duplicate Indexing**:
+  - Shared projects are indexed a single time and annotated in the context files with a shared flag. This prevents repeated indexing for the same project across different `.sln` files.
+- **Special Handling of Core Projects**:
+  - Shared projects in layers such as BLL or DAL are treated as global components. Metadata such as usage frequency and dependency counts across solutions is appended to their context files for enhanced traceability.
+  - Example annotation for shared projects:
+
+```json
+    {
+      "project_id": "BLL_Core",
+      "shared_flag": true,
+      "shared_solutions": ["SolutionA.sln", "SolutionB.sln"],
+      "indexed_only_once": true
+    }
 ```
+
+---
+
+### 8.4 Cross-Solution Workflow Linking
+
+Some enterprise workflows span projects located in different solutions. The generator supports cross-solution workflows through forward and reverse dependency mapping:
+
+- **Cross-Solution Dependencies**:
+  - When dependencies link projects across solutions, the generator records these in context files as explicit cross-solution references, allowing complete workflow traceability.
+- **Workflow ID Naming**:
+  - Cross-solution workflows are assigned unique IDs using the following convention:
+    - `SolutionName1_ProjectNameX → SolutionName2_ProjectNameY_WorkflowID`
+  - Example:
+
+```json
+    {
+      "workflow_id": "SolutionA_ProjectA → SolutionB_ProjectB_Workflow123",
+      "cross_solution_flag": true,
+      "details": {
+        "source_project": "ProjectA",
+        "destination_project": "ProjectB",
+        "dependency_type": "MethodInvocation"
+      }
+    }
+```
+
+- **Context File Updates**:
+  - Inter-solution dependencies are appended to the relevant workflow or method context files under a `CrossSolutionDependencies` section.
+
+---
+
+### 8.5 Configuration
+
+To support flexible integrations across enterprise environments, the generator provides configuration options for selecting and prioritizing `.sln` files.
+
+- **Solution Inclusion/Exclusion**:
+  - Define specific `.sln` files to include or exclude during the scanning phase.
+  - Example:
+
+```yaml
+    solution_inclusion:
+      - "MainSolution.sln"
+      - "SupportSolution.sln"
+
+    solution_exclusion:
+      - "LegacySolution.sln"
+```
+
+- **Solution Priority**:
+  - When conflicts exist (e.g., shared project ambiguity), solutions can be prioritized using a ranking system.
+  - Example:
+
+```yaml
+    priority_order:
+      - solution: "MainSolution.sln"
+        rank: 1
+      - solution: "SupportSolution.sln"
+        rank: 2
+```
+
+These configurations allow developers to avoid indexing unnecessary or legacy solutions and ensure the generator prioritizes critical workflows correctly.
+
+To support flexible integrations across enterprise environments, the generator provides configuration options for selecting and prioritizing `.sln` files.
+
+- **Solution Inclusion/Exclusion**:
+  - Define specific `.sln` files to include or exclude during the scanning phase.
+  - Example:
+
+```yaml
+    solution_inclusion:
+      - "MainSolution.sln"
+      - "SupportSolution.sln"
+
+    solution_exclusion:
+      - "LegacySolution.sln"
+```
+
+- **Solution Priority**:
+  - When conflicts exist (e.g., shared project ambiguity), solutions can be prioritized using a ranking system.
+  - Example:
+
+```yaml
+    priority_order:
+      - solution: "MainSolution.sln"
+        rank: 1
+      - solution: "SupportSolution.sln"
+        rank: 2
+```
+
+These configurations allow developers to avoid indexing unnecessary or legacy solutions and ensure the generator prioritizes critical workflows correctly.
