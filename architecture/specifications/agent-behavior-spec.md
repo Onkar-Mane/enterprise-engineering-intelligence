@@ -10,7 +10,7 @@ Key functionalities include:
 
 The system comprises a set of modular agents working in an orchestrated manner to handle queries, retrieve relevant data, evaluate confidence, and generate actionable outputs.
 
----
+
 
 ## 2. Agent Types
 
@@ -29,7 +29,7 @@ The system comprises a set of modular agents working in an orchestrated manner t
   1. Match query to predefined workflow types using natural language processing (NLP) and metadata analysis.
   2. Assign priority scores based on workflow alignment and historical trends.
 
----
+
 
 ### 2.2 ContextRetrievalAgent
 **Purpose**: Retrieve contextually relevant information from engineering data sources (e.g., repositories, project management tools, documentation).
@@ -47,7 +47,7 @@ The system comprises a set of modular agents working in an orchestrated manner t
   1. Execute a query modified with workflow-relevant keywords and metadata.
   2. Rank results based on semantic similarity, recency, and context tags.
 
----
+
 
 ### 2.3 ConfidenceEvaluationAgent
 **Purpose**: Assess the confidence level of retrieved information and decide the next course of action (e.g., direct user response or expansion).
@@ -70,7 +70,7 @@ The system comprises a set of modular agents working in an orchestrated manner t
      - If below the "low confidence" threshold, identify failure or insufficient results.
      - Otherwise, trigger the CodeExpansionAgent.
 
----
+
 
 ### 2.4 CodeExpansionAgent
 **Purpose**: Expand a query into actionable code snippets or pseudocode when the confidence level warrants additional processing.
@@ -88,7 +88,7 @@ The system comprises a set of modular agents working in an orchestrated manner t
   2. Ensure expanded code aligns with workflow intent and technical requirements.
   3. Annotate with explanations to clarify purpose and functionality.
 
----
+
 
 ## 3. Agent Orchestration
 
@@ -105,7 +105,7 @@ The agents are orchestrated in the following sequence:
 
 Each agent passes its results and associated metadata to the next, following the order described above. The system ensures minimal user intervention by automating handoffs and only providing users with outputs that meet the required confidence thresholds.
 
----
+
 
 ## 4. Confidence Scoring
 
@@ -121,7 +121,7 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
 - **Expansion Required**: 0.6 <= Score < 0.85 – Trigger CodeExpansionAgent.
 - **Low Confidence**: Score < 0.6 – Failure is identified, and fallback mechanisms are triggered.
 
----
+
 
 ## 5. Failure Handling
 
@@ -169,7 +169,7 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
     - Else
         - `return DEFAULT_WORKFLOW_SIGNAL()`
 
----
+
 
 ### 6.2 ContextRetrievalAgent
 
@@ -210,7 +210,7 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
 3. Track token usage at each level:
     - `tokens_used = count_tokens(workflow_context_per_level)`
 
----
+
 
 ### 6.3 ConfidenceEvaluationAgent
 
@@ -234,7 +234,7 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
     - Else
         - `return RETRIEVAL_FAILED_SIGNAL(reason='Low confidence')`
 
----
+
 
 ### 6.4 CodeExpansionAgent
 
@@ -258,7 +258,7 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
 5. Return raw code metadata:
     - `return RAW_CODE_BLOCK_SIGNAL(file_path, line_start, line_end, raw_code_block)`
 
----
+
 
 ### 6.5 Orchestration Flow
 
@@ -275,3 +275,131 @@ The **ConfidenceEvaluationAgent** calculates a confidence score using the follow
     - Signals: `RAW_CODE_BLOCK`, `FILE_NOT_FOUND`, `RANGE_ERROR`.
 
 The flow ensures seamless delegation between agents and effectively handles complex queries while accounting for failures and fallback mechanisms.
+
+## 7. Error Handling and Fallback Mechanisms
+
+### 7.1 Context Generation Fails Mid-Workflow
+
+#### Trigger:
+- Failure occurs when `ContextRetrievalAgent` is unable to generate context at any hierarchical level or encounters a runtime issue during processing.
+
+#### Detection:
+- Timeout or error signal during context generation.
+- Flag raised by token tracker exceeding usage thresholds or file load failures.
+
+#### Recovery Action:
+1. **State Preservation**:
+    - Save current progress, including any partially loaded context files.
+    - Mark partial files as `incomplete` using metadata fields (e.g., `"status": "incomplete"` in JSON output).
+2. **Agent Behavior**:
+    - Retry up to `RETRY_LIMIT` (default: 3 attempts) if failure is transient (e.g., timeout or resource constraint).
+    - Halt process entirely if failure is non-recoverable (e.g., corrupted metadata or missing files).
+3. **Developer Notification**:
+    - If retries fail or agent halts:
+        - Send `CONTEXT_GENERATION_FAILED_SIGNAL` to developer.
+        - Include detailed logs specifying the failure source (e.g., timeout vs data corruption).
+
+
+
+### 7.2 Context File Found but Corrupted or Malformed JSON
+
+#### Trigger:
+- `ContextRetrievalAgent` loads a context file successfully but detects corrupted syntax or structural issues in the JSON.
+
+#### Detection:
+- Validation logic at file load:
+    - Syntax error when parsing JSON.
+    - Missing required fields or invalid schema (e.g., absent `workflow_id` or key properties).
+    - Hash mismatch indicating tampering.
+
+#### Recovery Action:
+1. **Fallback Behavior**:
+    - Attempt secondary recovery:
+        - Retry loading file after resetting corrupt buffers.
+        - Use `LAST_VALID_VERSION` of the file (if cached).
+    - Skip corrupt file and continue with subsequent files if context generation is non-critical for the query.
+    - Halt workflow entirely if the corrupted file is critical and no valid version exists.
+2. **Developer Notification**:
+    - Send corruption signal:
+        - If skipped: `CONTEXT_FILE_SKIPPED_SIGNAL(file_name)`
+        - If halted: `CRITICAL_FILE_CORRUPTED_SIGNAL(file_name)`
+
+
+
+### 7.3 Retrieval Returns Stale Context (File Changed Since Last Index)
+
+#### Trigger:
+- Context retrieved by `ContextRetrievalAgent` references a file that has been modified since the last indexing.
+
+#### Detection:
+- Hash comparison between current file hash and stored hash from the last index.
+- Timestamp discrepancy exceeding `STALENESS_THRESHOLD` (default: 7 days).
+
+#### Recovery Action:
+1. **Fallback Behavior**:
+    - Evaluate staleness impact:
+        - If staleness flagged as minor, proceed using stale context with a warning.
+        - If flagged as major (e.g., significant structural changes detected), block stale context entirely and re-index files.
+    - Trigger secondary retrieval process for updated context from repository.
+2. **Developer Notification**:
+    - If minor: `STALE_CONTEXT_WARNING_SIGNAL(file_name)`
+    - If major: `STALE_CONTEXT_BLOCKED_SIGNAL(file_name)`
+
+
+
+### 7.4 Agent Handoff Fails (One Agent Crashes Mid-Pipeline)
+
+#### Trigger:
+- Failure occurs during inter-agent communication or when an agent fails to return a signal in allotted time.
+
+#### Detection:
+- Orchestrator detects:
+    - Missing or invalid response signal during handoff.
+    - Runtime error or crash signal from the failed agent.
+
+#### Recovery Action:
+1. **Fallback Behavior**:
+    - Orchestrator attempts to restart the crashed agent:
+        - Retry execution up to `RETRY_LIMIT`.
+        - If restart fails, proceed with partial results from preceding agents.
+    - Restart entire pipeline if failure creates downstream invalidations (e.g., corrupted context passed to subsequent agents).
+    - Partial results are returned only if sufficient for a meaningful response.
+2. **Developer Notification**:
+    - Partial results: `PARTIAL_RESULTS_SIGNAL(results_summary)`
+    - Pipeline restart: `PIPELINE_RESTART_SIGNAL(failed_agent)`
+
+
+
+### 7.5 LLM Reasoning Fails or Times Out After Context is Passed
+
+#### Trigger:
+- Failure occurs when `ConfidenceEvaluationAgent` passes context to LLM and does not receive a reasoning result due to timeout or processing failure.
+
+#### Detection:
+- Timeout error when waiting for reasoning response.
+- Invalid or blank response signal from LLM.
+
+#### Recovery Action:
+1. **Retry Logic**:
+    - Retry LLM reasoning up to `RETRY_LIMIT` with adjusted parameters (e.g., reduce query complexity or increase timeout threshold).
+2. **Fallback Behavior**:
+    - If retries fail, return raw context directly to the developer:
+        - Annotate raw context with explanation that LLM processing failed.
+3. **Developer Notification**:
+    - On failure: `LLM_REASONING_FAILED_SIGNAL(context_summary)`
+    - On fallback: `RAW_CONTEXT_FALLBACK_SIGNAL(context_summary)`
+
+
+
+## Signals Reference for Error Scenarios
+
+| **Scenario**                        | **Signal Name**                      | **Details**                                   |
+|-|--|-|
+| Context generation fails mid-workflow | `CONTEXT_GENERATION_FAILED_SIGNAL`   | Failure in generating context during workflow. |
+| Corrupt/malformed context file       | `CONTEXT_FILE_SKIPPED_SIGNAL`        | File skipped due to corruption or error.     |
+| Stale context detected               | `STALE_CONTEXT_WARNING_SIGNAL`       | Warning issued for minor staleness.          |
+| Agent handoff fails                  | `PIPELINE_RESTART_SIGNAL`            | Full pipeline restarted after agent crash.   |
+| LLM reasoning timeout                | `LLM_REASONING_FAILED_SIGNAL`        | LLM failed to generate reasoning response.   |
+| Raw fallback provided                | `RAW_CONTEXT_FALLBACK_SIGNAL`        | Raw context returned due to reasoning failure.|
+
+This section ensures robust error handling, reduces user disruptions, and enables transparent notifications for remediation during failures.
