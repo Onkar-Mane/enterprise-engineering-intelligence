@@ -1,3 +1,7 @@
+ # Context File Examples for Enterprise Engineering Intelligence Platform  
+Below are three example JSON structures that represent various contexts for a LabelPrint workflow, a WCF service, and a DAL class in an ASP.NET enterprise MES system.  
+ ## 1. workflow-context.json  
+
 ```json
 {
   "workflow_id": "WP-001",
