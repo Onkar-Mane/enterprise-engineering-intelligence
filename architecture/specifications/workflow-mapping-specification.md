@@ -6,7 +6,7 @@ Represent enterprise workflows as unified semantic structures across frontend, s
 
 ---
 
-# Example Workflow Structure
+## Example Workflow Structure
 
 ```text
 LabelPrint
@@ -21,7 +21,7 @@ LabelPrint
 
 ---
 
-# Workflow Philosophy
+## Workflow Philosophy
 
 Traditional repository search treats files independently.
 
@@ -33,7 +33,7 @@ This system instead treats workflow chains as:
 
 ---
 
-# Workflow Mapping Benefits
+## Workflow Mapping Benefits
 
 - impact analysis
 - dependency tracing
@@ -43,7 +43,7 @@ This system instead treats workflow chains as:
 
 ---
 
-# Future Direction
+## Future Direction
 
 Workflow mappings may later support:
 
