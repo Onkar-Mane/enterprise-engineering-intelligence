@@ -1,0 +1,14 @@
+# AI memory
+.ai-memory/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Utility scripts
+fix_docs.py
+
+# OS
+.DS_Store
+Thumbs.db
