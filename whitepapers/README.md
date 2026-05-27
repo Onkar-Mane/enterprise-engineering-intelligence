@@ -7,11 +7,11 @@ architectural whitepapers produced during the project.
 
 ## Enterprise AI Engineering Intelligence Platform — Proposal v1.0
 
-**File:** `Enterprise_AI_Platform_Proposal_v1.0.docx`
+**File:** `Enterprise_AI_Platform_Whitepaper_v1.0_Public.docx`
 **Date:** May 2026
 **Audience:** Management / stakeholders
 
-A production-grade management proposal covering:
+A production-grade management whitepaper covering:
 - Problem statement for large enterprise codebases
 - Hierarchical semantic indexing architecture
 - Hybrid retrieval system design
@@ -23,6 +23,6 @@ A production-grade management proposal covering:
 - Risk register with mitigations
 - Infrastructure investment summary
 
-The proposal presents a phased approach — Phase 1 requires zero
+The whitepaper presents a phased approach — Phase 1 requires zero
 infrastructure investment and validates the architecture on existing
 hardware before any server investment decision.
