@@ -1,14 +1,38 @@
 # enterprise-engineering-intelligence
 Workflow-aware engineering intelligence platform for large enterprise codebases using hybrid retrieval, hierarchical context systems, and progressive code expansion.
 
+## Table of Contents
 
-# Enterprise Engineering Intelligence Platform
+- [Vision](#vision)
+- [Problem Statement](#problem-statement)
+- [Proposed Direction](#proposed-direction)
+- [Core Architecture Philosophy](#core-architecture-philosophy)
+- [Retrieval Flow](#retrieval-flow)
+- [Hybrid Retrieval Architecture](#hybrid-retrieval-architecture)
+- [Engineering Digital Twin](#engineering-digital-twin)
+- [Current Enterprise Target Architecture](#current-enterprise-target-architecture)
+- [Context Intelligence System](#context-intelligence-system)
+- [Progressive Context Expansion](#progressive-context-expansion)
+- [Incremental Intelligence Refresh](#incremental-intelligence-refresh)
+- [Current Prototype Stack](#current-prototype-stack)
+- [Current Research Areas](#current-research-areas)
+- [Repository Structure](#repository-structure)
+- [Current Status](#current-status)
+- [Long-Term Goals](#long-term-goals)
+- [Important Note](#important-note)
+- [Research Journal](#research-journal)
+- [Architecture Evolution Log](#architecture-evolution-log)
+- [License](#license)
+- [Final Goal](#final-goal)
+
+
+## Enterprise Engineering Intelligence Platform
 
 ## Workflow-Aware Repository Cognition for Large Enterprise Systems
 
 ---
 
-# Vision
+## Vision
 
 Enterprise software systems contain massive amounts of hidden architectural intelligence that traditional AI coding assistants fail to understand efficiently.
 
@@ -26,7 +50,7 @@ The long-term goal is to build a scalable engineering intelligence infrastructur
 
 ---
 
-# Problem Statement
+## Problem Statement
 
 Modern enterprise systems often contain:
 
@@ -60,11 +84,11 @@ This approach breaks down at enterprise scale because:
 
 ---
 
-# Proposed Direction
+## Proposed Direction
 
 Instead of treating repositories as random code chunks, this platform treats them as:
 
-## Structured Engineering Systems
+### Structured Engineering Systems
 
 The architecture focuses on:
 
@@ -77,9 +101,9 @@ The architecture focuses on:
 
 ---
 
-# Core Architecture Philosophy
+## Core Architecture Philosophy
 
-## Never Load Entire Repositories
+### Never Load Entire Repositories
 
 The system is designed around the principle that:
 
@@ -103,7 +127,7 @@ Only if required does it expand into:
 
 ---
 
-# Retrieval Flow
+## Retrieval Flow
 
 ```text
 Developer Question
@@ -127,11 +151,11 @@ LLM Reasoning
 
 ---
 
-# Hybrid Retrieval Architecture
+## Hybrid Retrieval Architecture
 
 The platform combines:
 
-## Deterministic Retrieval
+### Deterministic Retrieval
 
 Uses:
 
@@ -155,7 +179,7 @@ All treated as one workflow domain.
 
 ---
 
-## Semantic Retrieval
+### Semantic Retrieval
 
 Uses:
 
@@ -167,7 +191,7 @@ Uses:
 
 ---
 
-## Why Hybrid Retrieval?
+### Why Hybrid Retrieval?
 
 Enterprise systems already contain implicit architecture intelligence through:
 
@@ -180,11 +204,11 @@ This project attempts to leverage that intelligence directly rather than relying
 
 ---
 
-# Engineering Digital Twin
+## Engineering Digital Twin
 
 This project explores the concept of an:
 
-## Engineering Digital Twin
+### Definition
 
 A structured cognitive representation of the software ecosystem capable of understanding:
 
@@ -202,13 +226,11 @@ The objective is to move beyond:
 * naive repository RAG
 * basic AI chat systems
 
-and toward:
-
-## reusable engineering intelligence infrastructure.
+and toward **reusable engineering intelligence infrastructure.**
 
 ---
 
-# Current Enterprise Target Architecture
+## Current Enterprise Target Architecture
 
 Current exploration targets large enterprise MES/SFS-style systems containing:
 
@@ -233,11 +255,11 @@ Hosted in:
 
 ---
 
-# Context Intelligence System
+## Context Intelligence System
 
 The platform introduces:
 
-## Multi-Level Context Structures
+### Multi-Level Context Structures
 
 Examples:
 
@@ -261,7 +283,7 @@ Each context layer contains:
 
 ---
 
-# Progressive Context Expansion
+## Progressive Context Expansion
 
 The system attempts to achieve:
 
@@ -277,7 +299,7 @@ This significantly reduces:
 
 ---
 
-# Incremental Intelligence Refresh
+## Incremental Intelligence Refresh
 
 Repository intelligence is designed to refresh incrementally.
 
@@ -301,12 +323,12 @@ This prevents expensive full repository re-indexing.
 
 ---
 
-# Current Prototype Stack
+## Current Prototype Stack
 
-## Runtime
+### Runtime
 - Ollama 0.24.0
 
-## Models
+### Models
 | Model | Role |
 |-------|------|
 | Qwen3:8b (Q4_K_M) | Primary semantic reasoning and indexing |
@@ -314,22 +336,22 @@ This prevents expensive full repository re-indexing.
 | Qwen2.5-Coder:1.5b | Autocomplete only |
 | nomic-embed-text | Semantic embeddings (future retrieval layer) |
 
-## Orchestration
+### Orchestration
 - Langroid (Python) — multi-agent hub-and-spoke task management
 
-## IDE Layer
+### IDE Layer
 - Roo Code (VS Code extension)
   - Ask Mode — read-only, for explain and understand tasks
   - Architect Mode — planning only, no file writes
   - Code Mode — implementation with approval on every file write
 
-## Index Storage
+### Index Storage
 - Local filesystem (JSON) — structured context files in `.ai-memory/`
 - Qdrant (planned) — vector search on top of context files
 
 ---
 
-# Current Research Areas
+## Current Research Areas
 
 Active exploration areas:
 
@@ -345,7 +367,7 @@ Active exploration areas:
 
 ---
 
-# Repository Structure
+## Repository Structure
 
 ```text
 architecture/
@@ -363,14 +385,13 @@ experiments/
 
 docs/
 
-assets/
 ```
 
 ---
 
-# Current Status
+## Current Status
 
-## Completed
+### Completed
 
 * Local inference setup
 * Continue.dev integration
@@ -389,7 +410,7 @@ assets/
 
 ---
 
-## In Progress
+### In Progress
 
 * Context file specifications
 * Workflow mapping schemas
@@ -399,7 +420,7 @@ assets/
 
 ---
 
-# Long-Term Goals
+## Long-Term Goals
 
 Potential future directions:
 
@@ -415,7 +436,7 @@ Potential future directions:
 
 ---
 
-# Important Note
+## Important Note
 
 This repository intentionally avoids publishing:
 
@@ -428,7 +449,7 @@ All examples and architectures are generalized for research and educational purp
 
 ---
 
-# Research Journal
+## Research Journal
 
 The `research-journal/` folder contains evolving thoughts, experiments, architectural explorations, and lessons learned while building scalable engineering intelligence systems.
 
@@ -444,7 +465,7 @@ The goal is to document not only successful ideas, but also:
 
 ---
 
-# Architecture Evolution Log
+## Architecture Evolution Log
 
 This section documents real decisions, pivots, and lessons learned
 during active development. A research project that only shows
@@ -452,7 +473,7 @@ successes is not honest research.
 
 ---
 
-## May 2026 — Orchestration Stack Pivot
+### May 2026 — Orchestration Stack Pivot
 
 **What was tried:**
 Initial stack used Continue.dev as the IDE layer with
@@ -500,13 +521,13 @@ Current version is 0.24.0 — bug is resolved. No workarounds needed.
 
 ---
 
-# License
+## License
 
 MIT License
 
 ---
 
-# Final Goal
+## Final Goal
 
 Build a scalable engineering intelligence infrastructure capable of understanding extremely large enterprise systems through:
 
@@ -523,4 +544,3 @@ rather than relying solely on:
 * raw code chunking
 * naive vector search
 * brute-force context loading
-
