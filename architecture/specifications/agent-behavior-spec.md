@@ -393,6 +393,9 @@ The flow ensures seamless delegation between agents and effectively handles comp
 
 ## Signals Reference for Error Scenarios
 
+
+### 7.6 Signals Reference
+
 | **Scenario**                        | **Signal Name**                      | **Details**                                   |
 |---|---|---|
 | Context generation fails mid-workflow | `CONTEXT_GENERATION_FAILED_SIGNAL`   | Failure in generating context during workflow. |
