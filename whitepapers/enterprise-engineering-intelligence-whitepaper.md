@@ -24,7 +24,7 @@ The architecture is applicable to any large enterprise codebase. The examples in
 
 Enterprise software systems contain massive amounts of architectural intelligence that traditional AI coding assistants fail to leverage efficiently. This platform proposes a fundamentally different approach: instead of treating a codebase as a collection of raw text files to be chunked and embedded, it treats the codebase as a structured engineering system with workflows, layers, conventions, and relationships that can be navigated deterministically.
 
-| | |
+| Aspect | Detail |
 |---|---|
 | **Problem** | Large enterprise codebases — often containing millions of lines across layered architectures — overwhelm current AI tools. Models context-overflow, retrieve irrelevant code, lose architectural awareness, and require developers to re-explain the same context in every session. |
 | **Solution** | A hierarchical semantic indexing system that converts the codebase into structured, navigable intelligence — allowing AI agents to retrieve precisely the right context without reading thousands of lines of raw code. All processing runs locally. No source code leaves the machine. |
@@ -348,7 +348,7 @@ Ensuring security and proper data handling is critical for an enterprise AI engi
 
 ---
 
-## 11.1 Data Residency  
+### 11.1 Data Residency  
 
 The platform has been architected to guarantee strict data residency requirements:  
 - **Source Code Retention**: All source code being indexed remains on the user’s local machine or internal server, ensuring no external transfer.  
@@ -360,7 +360,7 @@ By keeping all processing local, the platform is fully compatible with environme
 
 ---
 
-## 11.2 Context File Sensitivity  
+### 11.2 Context File Sensitivity  
 
 Context files generated during indexing contain summaries and descriptions of methods and business logic. These files are highly sensitive and require the same access controls as the source code itself. Key recommendations for secure context file management include:  
 - **Storage Location**: Store `.ai-memory/` outside of the version-controlled repository to avoid accidental exposure. For instance, add this directory to `.gitignore` to prevent commits.  
@@ -370,7 +370,7 @@ Encrypting context files or locking them to specific users/groups may be further
 
 ---
 
-## 11.3 Developer-Supplied Business Logic Answers  
+### 11.3 Developer-Supplied Business Logic Answers  
 
 During the indexing process, developers may supply answers to questions about cryptic code constructs (e.g., magic numbers, undocumented rules, or unclear methods). These answers:  
 - Are permanently stored within context files to augment knowledge for downstream reasoning tasks.  
@@ -380,7 +380,7 @@ By maintaining these enriched context files as a long-term knowledge asset, ente
 
 ---
 
-## 11.4 Threat Model — What the Platform Does NOT Protect Against  
+### 11.4 Threat Model — What the Platform Does NOT Protect Against  
 
 While the platform is inherently secure for typical use cases, it does not mitigate certain risks which must be addressed at the organizational level. The following are specific threat vectors for which prevention measures are recommended:
 
@@ -400,7 +400,7 @@ By addressing these risks at the organizational and procedural levels, enterpris
 
 ---
 
-## 11.5 Compliance Considerations  
+### 11.5 Compliance Considerations  
 
 The platform’s architecture inherently supports compliance requirements for sensitive environments:  
 - **On-Premises Deployment**: The platform is fully deployable on-premises, including air-gapped network configurations, to meet stringent security needs.  
