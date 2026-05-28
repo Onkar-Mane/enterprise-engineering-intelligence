@@ -36,14 +36,17 @@ End-to-end response time is defined as the interval between a developer's query 
 ## 3. Indexing Speed Targets
 
 ### Files Indexed per Hour
-Indexing is split into two distinct stages:
-1. **Stage 1**: Raw documentation parsing for immediate overview.
-2. **Stage 2**: Hierarchical context assembly and metadata enrichment.
+Indexing is split into two distinct stages with very different throughput characteristics:
 
-| Indexing Phase                   | Files Indexed per Hour (RTX 4050) | Files Indexed per Hour (H100/H200) |
-|----------------------------------|------------------------------------|-------------------------------------|
-| **Stage 1: Raw Documentation Pass** | ≥ 2,000 files                  | ≥ 10,000 files                     |
-| **Stage 2: Context Assembly Pass**  | ≥ 1,000 files                  | ≥ 5,000 files                      |
+1. **Stage 1 — Deterministic scan**: Tree-sitter AST structural extraction. Runs entirely offline — no LLM calls. Produces per-file `.relationships.json` + aggregate graph/index files.
+2. **Stage 2 — LLM enrichment**: File-by-file enrichment driven by the Phase 2 manifest. LLM writes region summaries (`br`) and retrieval hints (`rh`). Throughput is LLM-bound, not I/O-bound.
+
+| Indexing Phase                          | Throughput (RTX 4050 / local Ollama) | Throughput (H100/H200 server) |
+|-----------------------------------------|--------------------------------------|-------------------------------|
+| **Stage 1: Deterministic scan** | ~3,000 files/min (CPU-bound, no LLM) | ~5,000+ files/min (same — CPU only) |
+| **Stage 2: LLM enrichment**     | ≥ 2,000 files/hr                     | ≥ 10,000 files/hr              |
+
+> **Note:** The ≥ 2,000 files/hr figure is the **LLM enrichment rate** (Stage 2), not the scan rate. Stage 1 throughput is orders of magnitude faster and is not the bottleneck.
 
 ### Incremental File Refresh
 For updates to individual files during real-time development workflows:

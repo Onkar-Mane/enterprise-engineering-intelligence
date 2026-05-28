@@ -21,18 +21,28 @@ This is the foundational principle of the entire system.
 
 ## File Location
 
+Output lives under `.ai/`, mirroring the exact project folder structure to avoid filename collisions across multi-project solutions.
+
 ```
-.ai-memory/
-  context/
-    [filename].json          ← one per indexed file
-  raw-docs/
-    [filename]/
-      [region-name].md       ← Stage 1 output, one per region
-  global-common/
-    GlobalCommon.json        ← entities shared across files
+.ai/
+  {ProjectName}/
+    UI/Pages/
+      LabelPrint.aspx.relationships.json
+      LabelPrint.js.relationships.json
+    Services/WCF/
+      LabelPrintService.svc.relationships.json
+    DataAccess/
+      LabelPrintDAL.cs.relationships.json
+  _execution_graph.json       ← traversable page→webmethod→bll→svc→dal→table
+  _indexes.json               ← exact lookups (page_to_webmethods, etc.)
+  _shared_components.json     ← reusable infra ranked by reference count
+  _phase2_manifest.json       ← per-project file-by-file work list for Phase 2
+  _workflows.json             ← workflow-as-retrieval-unit (see workflows-schema.md)
 ```
 
-`.ai-memory/` is excluded from version control via `.gitignore`.
+`.ai/` is excluded from version control via `.gitignore`.
+
+> **Previous path (stale):** `.ai-memory/context/[filename].json` — flat layout caused filename collisions for multi-project solutions. Replaced by mirror-path layout above.
 
 ---
 
@@ -50,6 +60,31 @@ The agent MUST follow this order. Never skip levels.
 
 ---
 
+## Two-Layer Model
+
+Each `.relationships.json` file contains two distinct layers written at different phases:
+
+**Layer 1 — Deterministic (Phase 1, no LLM)**
+Produced by the tree-sitter scanner. Always present after Phase 1.
+- `rel_path` — path relative to solution root (collision-free key)
+- `type`, `layer`, `hash`, `total_lines`
+- `contents.regions` — region names from real `#region` tags + line ranges
+- `contents.regions[].mi` — method index: name, line range, method calls, attributes
+- `method_calls`, `asmx_calls`, `web_methods`, `svc_dal_calls`, `dal_sql_tables`
+- `batch_plan` — LLM call batching plan (≤5 methods AND ≤1000 lines per batch; oversized method = own batch)
+- `conflicts` — detected duplicate/overloaded signatures
+
+**Layer 2 — Semantic (Phase 2+, LLM-written)**
+Added file-by-file during Phase 2. Fields are absent until enrichment runs.
+- `rh` — retrieval hints (plain-English questions this file answers)
+- `br` — brief summaries per region
+- `dt` — detailed context per region (conditions, edge cases, method details)
+- `lc` — local common (magic numbers, shared variables, patterns, gc_candidates)
+- `qa` — developer-answered business logic questions (permanent)
+- `cfg` — conflicts with developer-added resolution notes
+
+---
+
 ## Key Abbreviations (legend)
 
 All context files begin with this legend block.
@@ -59,6 +94,8 @@ method names, variable names, or file paths.
 | Key | Full Name |
 |-----|-----------|
 | fp | physical_path |
+| rel_path | relative_path (solution root — collision-free key) |
+| batch_plan | llm_batching_plan (Phase 1 output, drives Phase 2) |
 | lc | local_common |
 | gc_ref | global_common_ref |
 | br | brief |
@@ -102,11 +139,18 @@ method names, variable names, or file paths.
 
   "file": "LabelPrintService.cs",
   "fp": "iPAS_Service/Services/LabelPrintService.cs",
+  "rel_path": "iPAS_Service/Services/LabelPrintService.cs",
   "type": "service",
   "layer": "backend",
   "last_indexed": "2026-05-01",
   "hash": "a3f9c2...",
   "total_lines": 40240,
+
+  "batch_plan": [
+    { "batch": 1, "regions": ["Initialization"], "methods": ["Initialize", "LoadConfig", "ValidatePrinter"], "est_lines": 280 },
+    { "batch": 2, "regions": ["Label Generation"], "methods": ["GetLabelData", "ValidateOrder", "GetLabelDataBulk"], "est_lines": 820 },
+    { "batch": 3, "regions": ["Label Generation"], "methods": ["BuildLabelPayload", "SubmitToPrinter"], "est_lines": 620 }
+  ],
 
   "rh": [
     "How does label generation work?",

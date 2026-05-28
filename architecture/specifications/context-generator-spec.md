@@ -49,75 +49,83 @@ While flexible, the tool uses folder paths as a signal in classification when na
 
 ## 3. Output
 
-The generator produces **four types of JSON context files**, each describing a logical layer or group:
+The generator produces **one per-file record** plus **four aggregate files**, all written under `.ai/` mirroring the project folder structure.
 
-### 3.1 `workflow-context.json`
-Describes detected end-to-end workflows inferred from naming correlation.
+> **Previous design (stale):** Four workflow-grouped files (`workflow-context.json`, `service-context.json`, `dal-context.json`, `ui-context.json`). This caused flat-file collisions in multi-project solutions and was replaced by the mirror-path layout below.
 
-**Example**:
+### 3.1 Per-file: `{rel_path}.relationships.json`
+
+One file per indexed source file, located at `.ai/{ProjectName}/{mirrored/path}/{filename}.relationships.json`.
+
+Contains two layers (see context-file-schema-v1.md):
+- **Layer 1 (Phase 1 — deterministic):** `rel_path`, `type`, `layer`, `hash`, `total_lines`, `contents.regions`, method index, call relationships, `batch_plan`, `conflicts`
+- **Layer 2 (Phase 2 — LLM-enriched):** `rh`, `br`, `dt`, `lc`, `qa`, `cfg` — added file-by-file during Phase 2; absent until enrichment runs
+
+**Minimal Phase 1 example:**
 ```json
-[
-  {
-    "workflow_id": "LabelPrint",
-    "components": [
-      { "type": "UI", "file": "UI/Pages/LabelPrint.aspx", "path": "/repo/UI/Pages/LabelPrint.aspx" },
-      { "type": "Service", "file": "Services/WCF/LabelPrintService.svc", "path": "/repo/Services/WCF/LabelPrintService.svc" },
-      { "type": "DAL", "file": "DataAccess/Repositories/LabelRepository.cs", "path": "/repo/DataAccess/Repositories/LabelRepository.cs" }
-    ],
-    "detected_via": "naming_match",
-    "last_updated": "2025-04-05T10:00:00Z"
-  }
-]
+{
+  "file": "LabelPrintDAL.cs",
+  "rel_path": "iPAS_Service/DataAccess/LabelPrintDAL.cs",
+  "type": "dal",
+  "layer": "backend",
+  "hash": "b7e2a1...",
+  "total_lines": 1840,
+  "contents": {
+    "regions": [
+      {
+        "name": "Label Queries",
+        "ln": "1-920",
+        "mc": 14,
+        "mi": [
+          { "name": "GetLabelFields", "ln": "45-89", "sql_tables": ["caufv_hdr", "caufv_pos"] }
+        ]
+      }
+    ]
+  },
+  "dal_sql_tables": ["caufv_hdr", "caufv_pos", "zfi_label_config"],
+  "batch_plan": [
+    { "batch": 1, "regions": ["Label Queries"], "methods": ["GetLabelFields", "GetBulkLabels"], "est_lines": 420 }
+  ],
+  "conflicts": []
+}
 ```
 
-### 3.2 `service-context.json`
-Describes all service endpoints and their types.
+### 3.2 `_execution_graph.json`
 
-**Example**:
-```json
-[
-  {
-    "service_name": "LabelPrintService",
-    "file": "Services/WCF/LabelPrintService.svc",
-    "type": "WCF",
-    "operations": ["PrintLabel", "ValidateTemplate"],
-    "hosting_model": "IIS",
-    "auth_required": true
-  }
-]
-```
+Fully traversable graph covering the complete execution chain:
+`page → webmethod → bll → svc → dal_class → sql_table`
 
-### 3.3 `dal-context.json`
-Describes data access components and their SQL dependencies.
+Uses a single node scheme and single edge format `{source, target, relation}`.
+Enables deterministic impact analysis — "what breaks if I change this DAL method?" — via graph traversal, no LLM required.
 
-**Example**:
-```json
-[
-  {
-    "repository": "LabelRepository",
-    "file": "DataAccess/Repositories/LabelRepository.cs",
-    "mapped_sql_files": ["SQL/LabelSchema.sql", "SQL/Procedures/InsertLabel.sql"],
-    "database": "InventoryDB"
-  }
-]
-```
+### 3.3 `_indexes.json`
 
-### 3.4 `ui-context.json`
-Describes UI pages and associated client logic.
+Exact and approximate lookup tables:
+- `page_to_webmethods` — which WebMethods does a page call?
+- `webmethod_to_pages` — which pages call this WebMethod?
+- `page_to_services` — ASMX/WCF services used by a page
+- `page_to_dal_classes` — DAL classes reachable from a page
+- `dalclass_to_tables` — SQL tables a DAL class touches
+- `page_to_tables` — approximate (class-level; flagged in file — use `page_to_dal_classes + dalclass_to_tables` for precision)
 
-**Example**:
-```json
-[
-  {
-    "page": "LabelPrint.aspx",
-    "path": "UI/Pages/LabelPrint.aspx",
-    "scripts": ["Scripts/label-printer.js"],
-    "backend_service": "LabelPrintService.svc"
-  }
-]
-```
+### 3.4 `_shared_components.json`
 
-All output files are written to a configurable directory and are safe to commit to version control.
+Reusable infrastructure components ranked by reference count across all pages.
+Example: `CommonBLL.ValidateSiteID` referenced by 212 pages — a prime `gc_candidate`.
+
+### 3.5 `_phase2_manifest.json`
+
+Per-project ordered work list for Phase 2 LLM enrichment. Each entry is a file record containing `rel_path`, `contents`, and `batch_plan` — everything the LLM needs in one place. JS entries carry a `referenced` flag; orphan/vendor JS is excluded from the manifest (deep-parse skipped at scan time to keep runtime fast).
+
+### 3.6 `_workflows.json`
+
+The platform's #1 differentiator — workflow-as-retrieval-unit. One entry per ASMX WebMethod (= one atomic business operation), grouped by entity base into clusters that represent the full CRUD feature.
+
+Stats from the reference codebase: 1,970 workflow entries, 1,804 groups, 922 full-chain (depth 4+), 82 no-downstream utility endpoints, 850 BLL-only (CommonBLL infrastructure or external compiled DLLs — surfaced honestly, not flagged as failures).
+
+Full schema in `workflows-schema.md`.
+
+All output is written under `.ai/` and is excluded from version control via `.gitignore`.
 
 ---
 
@@ -167,16 +175,17 @@ To support efficient use in CI/CD or IDE integrations, the generator supports **
 ### On Subsequent Runs:
 1. Compute difference between current file mtime/hash and stored state.
 2. Identify **changed files** (modified, added, deleted).
-3. Determine **affected workflows** by:
-   - Any file in a workflow group that changed → regenerate that workflow.
-   - Service files → update `service-context.json`.
-   - DAL-related files → update `dal-context.json` and any dependent workflows.
+3. Determine **affected files** by:
+   - Any changed file → regenerate its `{rel_path}.relationships.json`.
+   - Any changed file whose relationships touch the execution graph → regenerate `_execution_graph.json` and `_indexes.json`.
 4. Only regenerate affected JSON files.
 5. Update `state.json` with new timestamps and hashes.
 
 ### Options:
-- `--full-scan`: Ignore state, regenerate all.
-- `--incremental` (default): Use state for delta processing.
+- `--clean`: Delete all `.ai/` output and run a full rescan. Required when source files are deleted (incremental runs overwrite but never remove stale records for deleted files).
+- Default (no flag): Incremental — overwrite records for changed files only.
+
+> **Known limitation:** Incremental runs do not delete records for source files that were removed. Run with `--clean` after any bulk file deletion or project restructure.
 
 ---
 
