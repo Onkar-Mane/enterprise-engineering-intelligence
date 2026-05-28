@@ -2,6 +2,24 @@
 
 This document outlines potential edge cases encountered by an enterprise engineering intelligence platform while indexing and reasoning over large ASP.NET enterprise codebases. Each edge case category includes a description, detection approach, platform behavior, and developer action required.
 
+---
+
+## 0. Edge Cases Already Handled by the Phase 1 Scanner (tree-sitter AST)
+
+Several edge cases that were originally listed as risks are now handled deterministically by the Phase 1 scanner. They are included here for completeness — no developer action is required for these.
+
+| Edge case | How it is handled | Validated against |
+|---|---|---|
+| **Commented-out methods being indexed as real** | tree-sitter AST ignores comments. Regex previously extracted 6 phantom methods from BLL files (218→212 after AST). | `MoldingBLL.cs`, `ManufactureBLL.cs` |
+| **Non-public methods being missed** | tree-sitter walks all `method_declaration` nodes regardless of modifier. Regex previously required `public` keyword, missed 130 SVC methods (217→347, +37%). | `ManufactureService.svc.cs` |
+| **Fully-qualified `[WebMethod]` attributes missed** | AST attribute node check with substring scan: `any("WebMethod" in attr for attr in m["attributes"])`. Catches both `[WebMethod]` and `[System.Web.Services.WebMethod]`. | `iPAS_SOPWebService` (was 0/229, now 229/229) |
+| **Namespace-qualified ServiceClient breaks call detection** | Regex pattern accepts optional `[\w.]*\.` prefix on both sides, then asserts short-name match. `ManufactureBLL`: 479/603 → 603/603 service_calls. | `ManufactureBLL.cs` |
+| **SQL string fragments masquerading as table names** | Guard: real tables are ALL_CAPS (`LDB1_*`, `TBL_*`) with min 4 chars. Drops fragments like `"Manage"`, `"one"`, `"SOP"` that bleed from SQL built in C# strings. | `MoldingDAL.cs`, `ManufactureDAL.cs` |
+| **Conflicting method signatures across overloads** | Detected and flagged in per-file `conflicts` array with all line numbers; developer resolves in `cfg` field during Phase 2. | Per-file output |
+| **Duplicate-named methods across BLL and SVC layers** | `service_calls` captures the actual ServiceClient method called, not the BLL wrapper. So `BLL.MarkManufactureCompleted → SVC.MarkManufactureForceCompleted` resolves correctly. | `ManufactureBLL.cs` |
+
+**Magic numbers, business-logic intent, and undocumented status codes** are intentionally deferred to Phase 2 (LLM enrichment + developer Q&A) — these require semantic judgment the scanner cannot make. See edge case #1 below.
+
 
 ## 1. Cryptic or Undocumented Code  
 

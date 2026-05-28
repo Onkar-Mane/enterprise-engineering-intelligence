@@ -72,7 +72,36 @@ The system comprises a set of modular agents working in an orchestrated manner t
 
 
 
-### 2.4 CodeExpansionAgent
+### 2.4 ImpactAnalysisAgent
+**Purpose**: Answer "what breaks if I change X?" queries by walking the deterministic execution graph. **No LLM inference is used** — impact analysis is a graph traversal over Phase 1 artifacts.
+
+- **Inputs**:
+  - Target symbol: a method, DAL class, SQL table, or WebMethod.
+  - Project scope (one or more `.ai/{project}/` folders).
+  - Direction: upstream (callers) or downstream (callees).
+
+- **Data sources** (Phase 1 deterministic output — read-only):
+  - `_execution_graph.json` — full traversable call graph (12,413 nodes / 25,922 edges on the reference codebase).
+  - `_indexes.json` — O(1) reverse lookups (`page_to_webmethods`, `webmethod_to_pages`, `dalclass_to_tables`, etc.).
+  - `_workflows.json` — grouped workflows by entity base for "show me the full feature" queries.
+
+- **Outputs**:
+  - Ranked list of affected nodes (pages, WebMethods, BLL methods, SVC methods, DAL classes, SQL tables) with the exact graph path from target to each.
+  - Confidence flag — `exact` (per-method edges) or `approximate` (class-level DAL→SQL inheritance — see edge-cases.md limitation #2).
+  - Honest "no downstream" / "BLL-only" status when applicable (e.g., 850 BLL-only workflows hit CommonBLL infrastructure or external compiled BLLs).
+
+- **Decision Logic**:
+  1. Resolve target to a graph node (use `_indexes.json` for fast lookup).
+  2. BFS/DFS traversal on `_execution_graph.json` in the requested direction.
+  3. For DAL→SQL precision, prefer `page_to_dal_classes + dalclass_to_tables` over `page_to_tables` (the latter is class-level approximate).
+  4. Group results by layer (page / WebMethod / BLL / SVC / DAL / SQL) for readable output.
+  5. Return paths, not just nodes, so the developer can see *why* each item is affected.
+
+> **Why deterministic, not LLM:** Impact analysis must be exhaustive and reproducible. LLM-only knowledge-graph traversal skips ~31% of files (arXiv 2601.08773). The Phase 1 graph is built from tree-sitter AST and verified end-to-end; running it through an LLM would only introduce hallucination risk.
+
+---
+
+### 2.5 CodeExpansionAgent
 **Purpose**: Expand a query into actionable code snippets or pseudocode when the confidence level warrants additional processing.
 
 - **Inputs**:
