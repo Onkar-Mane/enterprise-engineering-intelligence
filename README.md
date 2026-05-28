@@ -332,21 +332,17 @@ This prevents expensive full repository re-indexing.
 | Model | Role |
 |-------|------|
 | Qwen3:8b (Q4_K_M) | Primary semantic reasoning and indexing |
-| Gemma4:4b | Lightweight helper — fast routing and retrieval decisions |
 | Qwen2.5-Coder:1.5b | Autocomplete only |
-| nomic-embed-text | Semantic embeddings (future retrieval layer) |
+| nomic-embed-text | Semantic embeddings (Phase 4 retrieval layer) |
 
 ### Orchestration
-- Langroid (Python) — multi-agent hub-and-spoke task management
+- LangFlow — visual multi-agent pipeline orchestration
 
 ### IDE Layer
-- Roo Code (VS Code extension)
-  - Ask Mode — read-only, for explain and understand tasks
-  - Architect Mode — planning only, no file writes
-  - Code Mode — implementation with approval on every file write
+- Continue (VS Code extension) — experimentation and validation only
 
 ### Index Storage
-- Local filesystem (JSON) — structured context files in `.ai-memory/`
+- Local filesystem (JSON) — structured context files in `.ai/`
 - Qdrant (planned) — vector search on top of context files
 
 ---
@@ -393,30 +389,51 @@ docs/
 
 ### Completed
 
-* Local inference setup
-* Continue.dev integration
-* Initial retrieval architecture
-* Hybrid retrieval direction
-* Workflow intelligence direction
-* Context layering strategy
-* Incremental indexing direction
-* Enterprise proposal architecture
+* Local inference setup (Ollama 0.24.0, Qwen3:8b, nomic-embed-text)
+* Phase 1 — deterministic scanner (tree-sitter AST, production-ready)
+  * Per-file `*.relationships.json` under `.ai/` mirroring project structure
+  * `_execution_graph.json` — full page→webmethod→bll→svc→dal→table chain (12,413 nodes, 25,922 edges)
+  * `_indexes.json` — exact and approximate lookups
+  * `_shared_components.json` — reusable infra ranked by reference count
+  * `_phase2_manifest.json` — per-project file-by-file work list for Phase 2
+  * `_workflows.json` — **workflow-as-retrieval-unit** (1,970 entries, 1,804 groups, 922 full-chain)
+  * Verified on real MES codebase: 237 pages, **1,970 ASMX WebMethods** (16 services), 16 WCF, 8 BLL, 16 DAL, 606 SQL tables, ~9,600 methods
+  * BLL→SVC edge accuracy validated at 99.8% on real files
 * Architecture diagrams (Mermaid) — system architecture, hybrid retrieval, incremental indexing
 * Agent behavior specification (RFC format)
-* Context file examples — workflow, service, DAL layers
+* Context file schema specification
 * Context file generator specification
 * Whitepaper extracted to Markdown
-* Competitive landscape analysis against GraphRAG, Cursor, CodeGraph
+* Competitive landscape analysis
 
 ---
 
-### In Progress
+### Next — Phase 5 (MCP Server, design complete, build next)
 
-* Context file specifications
-* Workflow mapping schemas
-* Retrieval orchestration logic
-* Incremental intelligence generation
-* Repository relationship extraction
+A stateless MCP server wrapping `.ai/` JSON as callable tools. One server, all projects.
+Tools exposed:
+
+* `trace_execution_chain(project, page, method)` — full ASPX→DAL chain from `_execution_graph`
+* `find_callers(project, dal_method)` — reverse lookup via `_indexes`
+* `find_table_users(project, table_name)` — table→pages lookup
+* `get_file_context(project, rel_path)` — reads `.relationships.json` for that file
+* `list_workflow_files(project, workflow_group)` — returns chain from `_workflows.json`
+* `search_semantic(project, query)` — Phase 4+ only, requires Qdrant
+
+Query router: naming/workflow match first (deterministic, free). Vector search second. Raw code last.
+
+---
+
+### Phase 2 (LLM enrichment — not yet started)
+
+File-by-file, region-by-region, driven by `_phase2_manifest.json`:
+
+* `br` (brief) — 1-2 sentence summary per file/region
+* `rh` (retrieval_hints) — keywords/phrases for vector search
+* `dt` (detailed) — full business logic + `error_symptom_router` (3-5 symptom→cause entries, lives inside `dt` of each ASPX page)
+* `lc` (local_common) — shared patterns/utilities
+* `qa` — Q&A pairs for fine-tuning
+* `cfg` — `gc_candidates` for shared-components catalog
 
 ---
 
@@ -518,6 +535,35 @@ can provide.
 **Ollama version note:**
 Qwen3 tool calling had a known parsing bug fixed in Ollama v0.17.6.
 Current version is 0.24.0 — bug is resolved. No workarounds needed.
+
+---
+
+### May 2026 — Phase 1 Complete + Second Stack Pivot
+
+**What was delivered:**
+Phase 1 deterministic scanner is production-ready. Tree-sitter AST extraction
+across all layers (ASPX, JS, ASMX, WCF, BLL, DAL, SQL). Full execution graph
+traced. Verified on real MES codebase: 237 pages, 1,970 WebMethods (16 services), ~9,600 methods,
+606 SQL tables. Runtime: ~1m25s for the full project (was 9.5m before JS deep-parse fix).
+
+**Stack corrections:**
+- Replaced Langroid with **LangFlow** for orchestration
+  (visual pipeline design fits multi-agent workflow better; no custom Python runtime)
+- Replaced Roo Code with **Continue** for IDE layer
+  (Continue used for experimentation and validation only — agent interface goes
+  through LangFlow pipelines, not IDE modes)
+- Removed Gemma4:4b helper model
+  (Qwen3:8b handles routing directly; helper model added latency without benefit)
+
+**Architecture correction — output path:**
+- Replaced flat `.ai-memory/context/[filename].json` with `.ai/` mirror-path layout
+  (`{ProjectName}/{mirrored/path}/{file}.relationships.json`)
+- Flat layout caused filename collisions across multi-project solutions
+- Mirror paths are collision-free and directly navigable
+
+**Key numbers locked in:**
+- Deterministic scan: ~3,000 files/min (CPU-only, no LLM)
+- LLM enrichment (Phase 2): ~2,000 files/hr on RTX 4050
 
 ---
 
