@@ -2,6 +2,8 @@
 
 > **Purpose:** This document maps every major AI code intelligence tool against the problem space that this project addresses. It explains where existing tools fall short for large enterprise codebases, and clarifies which design decisions in this project are differentiated vs. which are incremental improvements.
 
+> **Implementation status (May 2026):** Phase 1 (deterministic scanner) is complete — tree-sitter AST extraction, per-file `.relationships.json`, execution graph (12,413 nodes / 25,922 edges), indexes, shared components, and **`_workflows.json`** (1,970 workflow entries, 1,804 groups, 922 full-chain) are all production-ready. **The workflow-unit-as-retrieval differentiator is now emitted, not just claimed.** Phase 2 (LLM enrichment: `br`/`rh`/`dt` fields) has not yet started. Phase 5 (MCP server) is design-complete and build-next. AST parity with structural-graph tools (Cody/SCIP, CodeGraph) is achieved for the .NET WebForms layer stack.
+
 ---
 
 ## The Core Problem (Restated)
@@ -276,23 +278,23 @@ Continue.dev is the closest competitor on this axis — but it lacks the workflo
 
 | Decision | Validation |
 |----------|------------|
-| Pre-computed `.ai-memory/` Context Files | No existing tool does this. Eliminates per-query graph traversal. |
-| Workflow unit as first-class retrieval entity | No existing tool models cross-layer business workflows as a retrievable unit. |
-| 5-level hierarchical context expansion | Aider's compact signature map proves agents work better with summaries than full code. This project formalizes that into a queryable hierarchy. |
+| Pre-computed `.ai/` Context Files (mirror-path layout) | No existing tool does this. Eliminates per-query graph traversal. Mirror paths avoid filename collisions across multi-project solutions. |
+| Workflow unit as first-class retrieval entity | No existing tool models cross-layer business workflows as a retrievable unit. **Shipped (May 2026):** `_workflows.json` — 1,970 entries, one per WebMethod, grouped by entity base into 1,804 groups, 922 full-chain (page→WebMethod→BLL→SVC→DAL→SQL). |
+| 5-level hierarchical context expansion | Aider's compact signature map proves agents work better with summaries than full code. This project formalizes that into a queryable hierarchy. *(Levels 1–2 done in Phase 1; Levels 3–4 are Phase 2 LLM enrichment.)* |
 | Deterministic naming-convention navigation as first retrieval layer | Aider validates the deterministic approach; this project extends it to enterprise naming patterns (.NET layer suffixes, etc.). |
-| Local Ollama stack (Qwen3:8b + Gemma4:4b + Qwen2.5-Coder:1.5b) | Aider and Continue.dev prove local-first is viable. Copilot and Cursor prove cloud-only is a dealbreaker for regulated industries. |
-| SQLite or JSON for storage (no external vector DB) | CodeGraph proves SQLite-only is sufficient for structural queries at enterprise scale. Qdrant can be added later for semantic search without changing the architecture. |
-| Roo Code as IDE layer (not Continue.dev) | Continue.dev's multi-index approach is sound but its Ask/Architect/Code mode separation maps cleanly to Roo Code's built-in mode system, which gives behavioral differentiation without custom prompt engineering. |
+| Local Ollama stack (Qwen3:8b + Qwen2.5-Coder:1.5b + nomic-embed-text) | Aider and Continue prove local-first is viable. Copilot and Cursor prove cloud-only is a dealbreaker for regulated industries. |
+| JSON for storage; Qdrant deferred to Phase 4 | CodeGraph proves deterministic structural storage is sufficient for impact analysis. Qdrant added later for semantic search without architectural change. |
+| Continue as IDE layer (experimentation/validation only) | Keeps IDE tooling lightweight during Phase 1–3; full agent interface via LangFlow pipeline. |
 
 ---
 
 ## What This Project Should Do That No Existing Tool Does
 
-1. **Context File generation from source** — a script that reads a source file and generates a `.ai-memory/` context file with auto-populated structural fields, leaving human-knowledge fields blank for manual completion.
+1. **Context File generation from source** *(Phase 1 — done)* — tree-sitter scanner reads each source file and generates a `.ai/{rel_path}.relationships.json` with all structural fields populated; semantic fields (`rh`, `br`, `dt`) left blank for Phase 2 LLM enrichment.
 
-2. **Workflow discovery from naming conventions** — a tool that scans a codebase, detects `.NET`-style layer naming (`*BLL.cs`, `*DAL.cs`, `*Service.asmx`, `*.aspx`), and auto-groups them into proposed workflow units for human review.
+2. **Workflow discovery from naming conventions** *(Phase 1 — done, `_workflows.json` shipped)* — scanner detects `.NET`-style layer naming (`*BLL.cs`, `*DAL.cs`, `*Service.asmx`, `*.aspx`), builds the full execution graph, and emits one workflow entry per WebMethod grouped by entity base (CRUD verb-stripping + suffix normalization).
 
-3. **Blast-radius via Context File graph traversal** — instead of traversing raw source files, traverse the network of Context Files (each of which has `gc_ref` pointers to related files). Pre-computed relationships → instant impact analysis.
+3. **Blast-radius via deterministic graph traversal** *(Phase 1 — `_execution_graph.json` + `_indexes.json` complete)* — instead of traversing raw source files, traverse the pre-computed execution graph. Impact analysis is a graph query, not LLM inference.
 
 4. **Q&A capture loop** — when an agent discovers something true about a workflow that isn't in its Context File (e.g., via a debugging session), it writes a `qa` entry back to the Context File. Operational knowledge accumulates over time.
 

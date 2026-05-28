@@ -151,7 +151,7 @@ The agent reads the plain English documentation produced in Stage 1 — not the 
 
 | Component | Role |
 |---|---|
-| Orchestrator (Python / Langroid) | Central hub — manages agent lifecycle, task delegation, approval checkpoints, and state |
+| Orchestrator (LangFlow) | Central hub — manages agent lifecycle, task delegation, approval checkpoints, and state |
 | Backend Indexing Agent | Performs Stage 1 and Stage 2 indexing on service and DAL files |
 | Conflict Detection Agent | Identifies implementation discrepancies across files and surfaces them for developer resolution |
 | Retrieval Agent | Answers developer queries using the hierarchical context index |
@@ -186,12 +186,13 @@ Raw source code is the final retrieval layer, accessed only when structured inte
 ### 4.3 Folder Structure
 
 ```
-.ai-memory/
-    raw-docs/         # Plain English documentation from Stage 1, by file and region
-    context/          # Structured JSON context files, one per indexed file
-    global-common/    # GlobalCommon.json — entities shared across services
-    sessions/         # Active session state for ongoing indexing tasks
-    repo-map/         # (planned) Workflow linking and cross-file relationship graph
+.ai/
+    {ProjectName}/         # Mirrors exact project folder structure (collision-free)
+        *.relationships.json   # Per-file deterministic + LLM-enriched context
+    _execution_graph.json  # Traversable page->webmethod->bll->svc->dal->table chain
+    _indexes.json          # Exact and approximate lookup tables
+    _shared_components.json # Reusable infra ranked by reference count
+    _phase2_manifest.json  # Per-project file-by-file work list for LLM enrichment
 ```
 
 ---
@@ -206,12 +207,11 @@ Validated on consumer-grade hardware: RTX 4050, 6GB VRAM, 24GB RAM.
 |---|---|---|
 | Model Runtime | Ollama 0.24.0 | Local model serving with GPU acceleration |
 | Primary Model | Qwen3:8b (Q4_K_M, 5.2GB VRAM) | Main semantic reasoning and indexing |
-| Helper Model | Gemma4:4b | Lightweight routing and fast retrieval decisions |
 | Autocomplete Model | Qwen2.5-Coder:1.5b | Real-time code completion in editor |
-| Embedding Model | nomic-embed-text | Semantic vector embeddings for retrieval layer |
-| Orchestration | Langroid (Python) | Multi-agent hub-and-spoke task management |
-| Editor Integration | Roo Code (VS Code) | Developer UI with Ask / Architect / Code mode separation |
-| Index Storage | Local filesystem (JSON) | Structured context files in `.ai-memory/` |
+| Embedding Model | nomic-embed-text | Semantic vector embeddings (Phase 4 retrieval layer) |
+| Orchestration | LangFlow | Visual multi-agent pipeline orchestration |
+| Editor Integration | Continue (VS Code) | Experimentation and validation only |
+| Index Storage | Local filesystem (JSON) | Per-file `.relationships.json` under `.ai/` mirror structure |
 | Vector Storage | Qdrant *(planned)* | Semantic search on top of context files |
 
 ### 5.2 Production Server Stack (Reference)
@@ -221,7 +221,7 @@ Validated on consumer-grade hardware: RTX 4050, 6GB VRAM, 24GB RAM.
 | GPU Server | 8x NVIDIA H200 (or H100/A100) | Enables 70B+ parameter models at full GPU inference speed |
 | Primary Model | Qwen3:72b or Devstral:24b | Full reasoning capability for complex impact analysis |
 | Embedding Model | nomic-embed-text (self-hosted) | High-quality embeddings across the full index |
-| Orchestration | Langroid (Python) — same as local | Architecture is model-agnostic |
+| Orchestration | LangFlow — same as local | Architecture is model-agnostic |
 | Vector Database | Qdrant (self-hosted) | Fast semantic search across thousands of context files |
 | Model Serving | Ollama or vLLM | vLLM preferred at scale for throughput optimization |
 | Storage | NVMe SSD RAID | Fast read/write for large context file operations |
@@ -324,7 +324,7 @@ The long-term vision is an **Engineering Digital Twin**: a structured cognitive 
 | Storage | 4TB NVMe SSD (RAID 1) | Model weights, full codebase index, vector database |
 | Network | 10GbE NIC | Developer access via internal REST API |
 | Software | Ubuntu 22.04 LTS, CUDA, Ollama or vLLM, Qdrant | All open source — no licensing cost |
-| AI Models | Qwen3, Gemma4, nomic-embed-text | All open weight — no per-query API cost |
+| AI Models | Qwen3, Qwen2.5-Coder, nomic-embed-text | All open weight — no per-query API cost |
 
 After initial hardware investment, operational cost is electricity only. No per-query API fees, no cloud subscription costs, no model licensing costs.
 
